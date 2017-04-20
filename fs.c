@@ -54,7 +54,7 @@ void fs_debug() {
     printf("    %d inodes total\n",block.super.ninodes);
 
     int i;
-    for (i = 0; i <= INODES_PER_BLOCK; i += 1) {
+    for (i = 0; i < INODES_PER_BLOCK; i += 1) {
         if(block.inode[i].isvalid) {
             printf("inode %d:\n",i+1);
             printf("    size: %d bytes\n", block.inode[i].size);
