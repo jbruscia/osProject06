@@ -45,7 +45,7 @@ void fs_debug() {
     
     if(block.super.magic != FS_MAGIC) {
         printf("magic number is invalid\n");
-        exit(1;);
+        exit(1);
     }
     printf("magic number is valid \n");
 	printf("superblock:\n");
@@ -53,12 +53,13 @@ void fs_debug() {
 	printf("    %d blocks for inodes\n",block.super.ninodeblocks);
 	printf("    %d inodes total\n",block.super.ninodes);
 	
-	int count = 0;
-	while (block.inode[count]) {
-	    if(block.inode[count].isvalid) {
-	        printf("inode %d")
+	int i;
+	for (i = 0; i <= INODES_PER_BLOCK; i += 1) {
+	    if(block.inode[i].isvalid) {
+	        printf("inode %d:\n",i+1);
+	        printf("    size: %d bytes\n", block.inode[i].size);
+	        //printf("    direct blocks: ")
 	    }
-	    count += 1;
 	}
 }
 
