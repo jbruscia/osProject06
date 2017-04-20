@@ -34,49 +34,54 @@ union fs_block {
 	char data[DISK_BLOCK_SIZE];
 };
 
-int fs_format()
-{
+int fs_format() {
 	return 0;
 }
 
-void fs_debug()
-{
+void fs_debug() {
 	union fs_block block;
 
 	disk_read(0,block.data);
-
+    
+    if(block.super.magic != FS_MAGIC) {
+        printf("magic number is invalid\n");
+        exit(1;);
+    }
+    printf("magic number is valid \n");
 	printf("superblock:\n");
-	printf("    %d blocks\n",block.super.nblocks);
-	printf("    %d inode blocks\n",block.super.ninodeblocks);
-	printf("    %d inodes\n",block.super.ninodes);
+	printf("    %d blocks on disk\n",block.super.nblocks);
+	printf("    %d blocks for inodes\n",block.super.ninodeblocks);
+	printf("    %d inodes total\n",block.super.ninodes);
+	
+	int count = 0;
+	while (block.inode[count]) {
+	    if(block.inode[count].isvalid) {
+	        printf("inode %d")
+	    }
+	    count += 1;
+	}
 }
 
-int fs_mount()
-{
+int fs_mount() {
 	return 0;
 }
 
-int fs_create()
-{
+int fs_create() {
 	return 0;
 }
 
-int fs_delete( int inumber )
-{
+int fs_delete( int inumber ) {
 	return 0;
 }
 
-int fs_getsize( int inumber )
-{
+int fs_getsize( int inumber ) {
 	return -1;
 }
 
-int fs_read( int inumber, char *data, int length, int offset )
-{
+int fs_read( int inumber, char *data, int length, int offset ) {
 	return 0;
 }
 
-int fs_write( int inumber, const char *data, int length, int offset )
-{
+int fs_write( int inumber, const char *data, int length, int offset ) {
 	return 0;
 }
