@@ -52,6 +52,7 @@ void fs_debug() {
     printf("    %d blocks on disk\n",block.super.nblocks);
     printf("    %d blocks for inodes\n",block.super.ninodeblocks);
     printf("    %d inodes total\n",block.super.ninodes);
+    printf("tabbin");
 
     int i;
     for (i = 0; i < INODES_PER_BLOCK; i += 1) {
