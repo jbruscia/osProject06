@@ -52,16 +52,23 @@ void fs_debug() {
     printf("    %d blocks on disk\n",block.super.nblocks);
     printf("    %d blocks for inodes\n",block.super.ninodeblocks);
     printf("    %d inodes total\n",block.super.ninodes);
-    printf("tabbin");
 
-    int i;
+    int i, j;
     for (i = 0; i < INODES_PER_BLOCK; i += 1) {
         if(block.inode[i].isvalid) {
             printf("inode %d:\n",i+1);
             printf("    size: %d bytes\n", block.inode[i].size);
-            //printf("    direct blocks: ")
+            printf("    direct blocks: ");
+            for (j = 0; j < POINTERS_PER_INODE; j += 1) {
+                printf("each block: %d\n", block.inode[i].direct[j]);
+                if (block.inode[i].direct[j]) {
+                    printf("%d ", block.inode[i].direct[j]);
+                }
+            }
+            printf("\n");
         }
     }
+    
 }
 
 int fs_mount() {
