@@ -13,6 +13,10 @@
 #define POINTERS_PER_INODE 5
 #define POINTERS_PER_BLOCK 1024
 
+int numBlocks = 0;
+int iBlocks = 0;
+int numNodes = 0;
+
 struct fs_superblock {
     int magic;
     int nblocks;
@@ -52,21 +56,46 @@ void fs_debug() {
     printf("    %d blocks on disk\n",block.super.nblocks);
     printf("    %d blocks for inodes\n",block.super.ninodeblocks);
     printf("    %d inodes total\n",block.super.ninodes);
-
-    int i, j;
-    for (i = 0; i < INODES_PER_BLOCK; i += 1) {
-        if(block.inode[i].isvalid) {
-            printf("inode %d:\n",i+1);
-            printf("    size: %d bytes\n", block.inode[i].size);
-            printf("    direct blocks: ");
-            for (j = 0; j < POINTERS_PER_INODE; j += 1) {
-                printf("each block: %d\n", block.inode[i].direct[j]);
-                if (block.inode[i].direct[j]) {
-                    printf("%d ", block.inode[i].direct[j]);
+    int k,i,j;
+    numBlocks = block.super.nblocks;
+    iBlocks = block.super.ninodeblocks;
+    numNodes = block.super.ninodes;
+    int blockCount = 1;
+    for (k = 1; k <= iBlocks; k += 1)
+    {
+        //printf("block loop \n");
+        disk_read(k,block.data);
+        for (i = 0; i < INODES_PER_BLOCK; i += 1) {
+            if(block.inode[i].isvalid) {
+                printf("inode %d:\n",blockCount);
+                printf("    size: %d bytes\n", block.inode[i].size);
+                printf("    direct blocks: ");
+                for (j = 0; j < POINTERS_PER_INODE; j += 1) {
+                    //printf("each block: %d\n", block.inode[i].direct[j]);
+                    if (block.inode[i].direct[j]) {
+                        printf("%d ", block.inode[i].direct[j]);
+                    }
                 }
-            }
-            printf("\n");
+                printf("\n");
+                
+                if(block.inode[i].indirect) {
+                    
+                    printf("    indirect block: %d\n",block.inode[i].indirect);
+                    
+                    disk_read(block.inode[i].indirect,block.data);
+                    printf("    indirect data blocks: ");
+                    
+                    for (j = 0; j < POINTERS_PER_BLOCK; j += 1)
+                    {
+                        if(block.pointers[j]) printf("%d ",block.pointers[j]);
+                    }
+                    disk_read(k,block.data);
+                    printf("\n");
+                }
+             }
+             blockCount++;
         }
+        
     }
     
 }
