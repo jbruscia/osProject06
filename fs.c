@@ -17,6 +17,7 @@ int numBlocks = 0;
 int iBlocks = 0;
 int numNodes = 0;
 int *free_list;
+int free_size;
 int mountedOrNah = 0;
 
 struct fs_superblock {
@@ -67,14 +68,11 @@ int fs_format() {
                     if(block.inode[i].direct[j]){
                         block.inode[i].direct[j] = 0;
                     }
-                    printf("prick\n");
                 }
                 block.inode[i].isvalid = 0;
             }
-            printf("shit\n");
         }
         disk_write(k, block.data);
-        printf("fuck\n");
     }
     for(k = iBlocks + 1; k < numBlocks; k += 1){
         disk_read(k, block.data);
@@ -165,15 +163,13 @@ int fs_mount() {
     }
     free_list = malloc(sizeof(int) * block.super.nblocks);
     int k, i, j;
-    int tmp = block.super.nblocks;
-    for(i = 0; i < block.super.nblocks; i++){
-        printf("%d\n", i);
+    numBlocks = block.super.nblocks;
+    free_size = block.super.nblocks;
+    for(i = 0; i < free_size; i += 1){
         free_list[i] = 0;
     }
-    numBlocks = block.super.nblocks;
     iBlocks = block.super.ninodeblocks;
     numNodes = block.super.ninodes;
-    int blockCount = 1;
     for(k = 1; k <= iBlocks; k += 1){
         disk_read(k, block.data);
         for(i = 0; i < INODES_PER_BLOCK; i += 1){
@@ -193,10 +189,6 @@ int fs_mount() {
             }
         }
     }
-    for(i = 0; i < tmp; i++){
-        printf("%d\n", free_list[i]);
-    }
-    printf("%d\n", free_list[10]);
     mountedOrNah = 1;
     return 1;
 }
@@ -204,6 +196,25 @@ int fs_mount() {
 int fs_create() {
     //Create a new inode of zero length
     //return the (positive) inumber on success, on failure return 0
+    union fs_block block;
+    disk_read(0,block.data);
+    int i, j, k;
+    struct fs_inode newInode;
+    newInode.isvalid = 1;
+    newInode.size = 0;
+    for(i = 0; i < POINTERS_PER_INODE; i += 1){
+        newInode.direct[i] = 0;
+    }
+    newInode.indirect = 0;
+    for(k = 1; i <= bl; i++){
+        if(free_list[i] == 0){
+            disk_read(i, block.data);
+            for(j = 0; j < INODES_PER_BLOCK; j += 1){
+                
+            }
+        }
+    }
+    
     return 0;
 }
 
