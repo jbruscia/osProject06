@@ -67,11 +67,14 @@ int fs_format() {
                     if(block.inode[i].direct[j]){
                         block.inode[i].direct[j] = 0;
                     }
+                    printf("prick\n");
                 }
                 block.inode[i].isvalid = 0;
             }
+            printf("shit\n");
         }
         disk_write(k, block.data);
+        printf("fuck\n");
     }
     for(k = iBlocks + 1; k < numBlocks; k += 1){
         disk_read(k, block.data);
@@ -161,7 +164,40 @@ int fs_mount() {
         return 0;
     }
     free_list = malloc(sizeof(int) * block.super.nblocks);
-
+    int k, i, j;
+    int tmp = block.super.nblocks;
+    for(i = 0; i < block.super.nblocks; i++){
+        printf("%d\n", i);
+        free_list[i] = 0;
+    }
+    numBlocks = block.super.nblocks;
+    iBlocks = block.super.ninodeblocks;
+    numNodes = block.super.ninodes;
+    int blockCount = 1;
+    for(k = 1; k <= iBlocks; k += 1){
+        disk_read(k, block.data);
+        for(i = 0; i < INODES_PER_BLOCK; i += 1){
+            if(block.inode[i].isvalid){
+                for(j = 0; j < POINTERS_PER_INODE; j += 1){
+                    if(block.inode[i].direct[j]){
+                        free_list[block.inode[i].direct[j]] = 1; 
+                    }
+                }
+                if(block.inode[i].indirect){
+                    for(j = 0; j < POINTERS_PER_BLOCK; j += 1){
+                        if(block.pointers[j]){
+                            free_list[block.pointers[j]] = 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for(i = 0; i < tmp; i++){
+        printf("%d\n", free_list[i]);
+    }
+    printf("%d\n", free_list[10]);
+    mountedOrNah = 1;
     return 1;
 }
 
