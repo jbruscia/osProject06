@@ -17,6 +17,7 @@ int numBlocks = 0;
 int iBlocks = 0;
 int numNodes = 0;
 int *free_list;
+int mountedOrNah = 0;
 
 struct fs_superblock {
     int magic;
@@ -51,10 +52,8 @@ int fs_format() {
 
     disk_read(0, block.data);
 
-    free_list = malloc(sizeof(int) * block.super.nblocks);
     int k, i, j;
     numBlocks = block.super.nblocks;
-    int newInodeNum = numBlocks / 10 + 1;
     iBlocks = block.super.ninodeblocks;
     numNodes = block.super.ninodes;
     for(k = 1; k <= iBlocks; k += 1){
@@ -81,13 +80,18 @@ int fs_format() {
     //creating a new superblock
     struct fs_superblock newSuper;
     newSuper.magic = FS_MAGIC;
-    newSuper.nblocks = numBlocks;
+    newSuper.nblocks = disk_size();
+    int newInodeNum = newSuper.nblocks / 10 + 1;
+    if(newInodeNum < 1){
+        printf("ERROR: ninodeblocks cannot be less than 1!\n");
+        return 0;
+    }
     newSuper.ninodeblocks = newInodeNum;
     newSuper.ninodes = INODES_PER_BLOCK;
     block.super = newSuper;
 
     disk_write(0, block.data);
-
+    mountedOrNah = 0;
 
     return 1;
 }
@@ -150,7 +154,14 @@ void fs_debug() {
 int fs_mount() {
     //Examine the disk for a filesystem. If one is present, read the superblock, build a free block bitmap, and prepare the filesystem for use
     //return one on success, zero otherwise
-    return 0;
+    union fs_block block;
+    disk_read(0,block.data);
+    if(block.super.magic != FS_MAGIC){
+        return 0;
+    }
+    free_list = malloc(sizeof(int) * block.super.nblocks);
+
+    return 1;
 }
 
 int fs_create() {
