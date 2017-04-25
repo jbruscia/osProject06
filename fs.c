@@ -223,7 +223,7 @@ int fs_create() {
     newInode.indirect = 0;
     for(k = 1; k <= iBlocks; k+=1){
         disk_read(k, block.data);        
-        for(i = 0; i < INODES_PER_BLOCK; i += 1){
+        for(i = 1; i < INODES_PER_BLOCK; i += 1){
             if(!block.inode[i].isvalid) {                
                 block.inode[i] = newInode;
                 disk_write(k, block.data);
@@ -277,10 +277,22 @@ int fs_getsize( int inumber ) {
 }
 
 int fs_read( int inumber, char *data, int length, int offset ) {
-    //Read data from a valid inode. Copy "length" bytes from the pointer "data" into the inode starting at "offset" bytes
+    //Read data from a valid inode. Copy "length" bytes from the inode into the "data" pointer starting at "offset" bytes
     //Allocate any necessary direct and indirect blocks in the process. Return the number of bytes actually written
     //The number of bytes actually written could be smaller than the number of bytes requested, perhaps if the disk becomes full
     //If the given number is invalid, or any other error is encoutnered, return 0
+    union fs_block block;
+    disk_read(0, block.data);
+    if(inumber < 1 || inumber > INODES_PER_BLOCK * block.super.ninodeblocks){ //ADD THE CASE THAT IT'S TOO HIGH
+        printf("Your input number is invalid!\n");
+        return -1;
+    }
+    int j;
+    numBlocks = block.super.nblocks;
+    iBlocks = block.super.ninodeblocks;
+    numNodes = block.super.ninodes;
+
+
     return 0;
 }
 
