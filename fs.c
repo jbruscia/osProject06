@@ -116,7 +116,7 @@ void fs_debug() {
     numBlocks = block.super.nblocks;
     iBlocks = block.super.ninodeblocks;
     numNodes = block.super.ninodes;
-    int blockCount = 1;
+    int blockCount = 0;
     for (k = 1; k <= iBlocks; k += 1)
     {
         //printf("block loop \n");
@@ -133,25 +133,37 @@ void fs_debug() {
                     }
                 }
                 printf("\n");
-                
+
                 if(block.inode[i].indirect) {
                     printf("    indirect block: %d\n",block.inode[i].indirect);
-                    
+
                     disk_read(block.inode[i].indirect,block.data);
                     printf("    indirect data blocks: ");
-                    
+
                     for (j = 0; j < POINTERS_PER_BLOCK; j += 1){
                         if(block.pointers[j]) printf("%d ", block.pointers[j]);
                     }
                     disk_read(k,block.data);
                     printf("\n");
                 }
-             }
+            }
         }
-        
+
     }
-    
+
 }
+/*
+void fill_free_list(){
+    union fs_block block;
+    disk_read(0, block.data);
+    free_list = malloc(sizeof(int) * block.super.nblocks);
+    free_size = block.super.nblocks;
+    for(i = 0; i < free_size; i += 1){
+        free_list[i] = 0;
+    }
+}
+*/
+
 
 int fs_mount() {
     //Examine the disk for a filesystem. If one is present, read the superblock, build a free block bitmap, and prepare the filesystem for use
@@ -198,7 +210,10 @@ int fs_create() {
     //return the (positive) inumber on success, on failure return 0
     union fs_block block;
     disk_read(0,block.data);
-    int i, j, k;
+    numBlocks = block.super.nblocks;
+    iBlocks = block.super.ninodeblocks;
+    numNodes = block.super.ninodes;
+    int i, k, blockCount = 0;
     struct fs_inode newInode;
     newInode.isvalid = 1;
     newInode.size = 0;
@@ -206,28 +221,59 @@ int fs_create() {
         newInode.direct[i] = 0;
     }
     newInode.indirect = 0;
-    for(k = 1; i <= bl; i++){
-        if(free_list[i] == 0){
-            disk_read(i, block.data);
-            for(j = 0; j < INODES_PER_BLOCK; j += 1){
-                
+    for(k = 1; k <= iBlocks; k+=1){
+        disk_read(k, block.data);        
+        for(i = 0; i < INODES_PER_BLOCK; i += 1){
+            if(!block.inode[i].isvalid) {                
+                block.inode[i] = newInode;
+                disk_write(k, block.data);
+                return i + INODES_PER_BLOCK * blockCount;
             }
         }
+        blockCount++;
     }
-    
     return 0;
 }
 
 int fs_delete( int inumber ) {
     //Delete the inode indicated by the inumber. Release all data and indirect blocks assigned to this inode, returning them to the free block map
     //on success return 1, on failure return 0
-    return 0;
+    union fs_block block;
+    disk_read(0, block.data);
+    if(inumber < 1 || inumber > INODES_PER_BLOCK * block.super.ninodeblocks){ //ADD THE CASE THAT IT'S TOO HIGH
+        printf("Your input number is invalid!\n");
+        return 0;
+    }
+    int j;
+    numBlocks = block.super.nblocks;
+    iBlocks = block.super.ninodeblocks;
+    numNodes = block.super.ninodes;
+    disk_read((inumber / INODES_PER_BLOCK) + 1, block.data);
+    for(j = 0; j < POINTERS_PER_INODE; j += 1){
+        free_list[block.inode[inumber % INODES_PER_BLOCK].direct[j]] = 0;
+        block.inode[inumber % INODES_PER_BLOCK].direct[j] = 0;
+    }
+    block.inode[inumber % INODES_PER_BLOCK].indirect = 0;
+    block.inode[inumber % INODES_PER_BLOCK].isvalid = 0;
+    disk_write((inumber / INODES_PER_BLOCK) + 1, block.data);
+    return 1;
 }
 
 int fs_getsize( int inumber ) {
     //return the logical size of the given inode in bytes. Note that zero is a valid logical size for an inode
     //on failure, return -1
-    return -1;
+    union fs_block block;
+    disk_read(0, block.data);
+    if(inumber < 1 || inumber > INODES_PER_BLOCK * block.super.ninodeblocks){ //ADD THE CASE THAT IT'S TOO HIGH
+        printf("Your input number is invalid!\n");
+        return -1;
+    }
+    int j;
+    numBlocks = block.super.nblocks;
+    iBlocks = block.super.ninodeblocks;
+    numNodes = block.super.ninodes;
+    disk_read((inumber / INODES_PER_BLOCK) + 1, block.data);
+    return block.inode[inumber % INODES_PER_BLOCK].size;
 }
 
 int fs_read( int inumber, char *data, int length, int offset ) {
@@ -241,3 +287,7 @@ int fs_read( int inumber, char *data, int length, int offset ) {
 int fs_write( int inumber, const char *data, int length, int offset ) {
     return 0;
 }
+//QUESTIONS
+//where should the free_list be initialized?
+//Does delete mean we need to wipe the data or can we remove the block from the free list?
+//Do the inodes go to 1 to 384 or 1 to 128 and reset?
