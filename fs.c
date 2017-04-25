@@ -44,7 +44,7 @@ int fs_format() {
     //create a new filesystem, destroying any data already present
     //set aside ten percent of the blocks for inodes, clears the inode table, and writes the super block
     //returns one on success, zero otherwise
-    if(fs_mount() == 1){
+    if(mountedOrNah == 1){
         printf("File system cannot format an already-mounted disk. Format failed!\n");
         return 0;
     }
@@ -71,6 +71,7 @@ int fs_format() {
                 block.inode[i].isvalid = 0;
             }
         }
+        disk_write(k, block.data);
     }
     for(k = iBlocks + 1; k < numBlocks; k += 1){
         disk_read(k, block.data);
