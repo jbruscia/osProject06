@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
+#include <math.h>
 
 #define FS_MAGIC           0xf0f03410
 #define INODES_PER_BLOCK   128
@@ -117,6 +118,7 @@ void fs_debug() {
     iBlocks = block.super.ninodeblocks;
     numNodes = block.super.ninodes;
     int blockCount = 0;
+    double sizeRemaining;
     for (k = 1; k <= iBlocks; k += 1)
     {
         //printf("block loop \n");
@@ -134,13 +136,15 @@ void fs_debug() {
                 }
                 printf("\n");
 
-                if(block.inode[i].indirect) {
+                if(block.inode[i].size > POINTERS_PER_INODE*DISK_BLOCK_SIZE){
+                
+                    sizeRemaining = block.inode[i].size - POINTERS_PER_INODE*DISK_BLOCK_SIZE;
                     printf("    indirect block: %d\n",block.inode[i].indirect);
 
                     disk_read(block.inode[i].indirect,block.data);
                     printf("    indirect data blocks: ");
 
-                    for (j = 0; j < POINTERS_PER_BLOCK; j += 1){
+                    for (j = 0; j < ceil(sizeRemaining/DISK_BLOCK_SIZE); j += 1){
                         if(block.pointers[j]) printf("%d ", block.pointers[j]);
                     }
                     disk_read(k,block.data);
@@ -175,14 +179,17 @@ int fs_mount() {
     }
     free_list = malloc(sizeof(int) * block.super.nblocks);
     int k, i, j;
+    double sizeRemaining;
     numBlocks = block.super.nblocks;
     free_size = block.super.nblocks;
     for(i = 0; i < free_size; i += 1){
         free_list[i] = 0;
     }
+    free_list[0] = 1;
     iBlocks = block.super.ninodeblocks;
     numNodes = block.super.ninodes;
-    for(k = 1; k <= iBlocks; k += 1){
+    for(k = 1; k <= iBlocks; k += 1) {
+        free_list[k] = 1;
         disk_read(k, block.data);
         for(i = 0; i < INODES_PER_BLOCK; i += 1){
             if(block.inode[i].isvalid){
@@ -192,15 +199,20 @@ int fs_mount() {
                     }
                 }
                 if(block.inode[i].size > POINTERS_PER_INODE*DISK_BLOCK_SIZE){
+                    sizeRemaining = block.inode[i].size - POINTERS_PER_INODE*DISK_BLOCK_SIZE;
+                    
                     free_list[block.inode[i].direct[j]] = 1;
-                    for(j = 0; j < POINTERS_PER_BLOCK; j += 1){
-                        if(block.pointers[j]){
+                    disk_read(block.inode[i].indirect, block.data);
+                    for(j = 0; j < ceil(sizeRemaining/DISK_BLOCK_SIZE); j += 1){
                             free_list[block.pointers[j]] = 1;
-                        }
                     }
+                    disk_read(k, block.data);
                 }
             }
         }
+    }
+    for(i = 0; i < free_size; i += 1){
+        printf("i: %d free_list[i]: %d\n",i,free_list[i]);
     }
     mountedOrNah = 1;
     return 1;
@@ -246,17 +258,34 @@ int fs_delete( int inumber ) {
         return 0;
     }
     int j;
+    double sizeRemaining;
     numBlocks = block.super.nblocks;
     iBlocks = block.super.ninodeblocks;
     numNodes = block.super.ninodes;
     disk_read((inumber / INODES_PER_BLOCK) + 1, block.data);
+    
+    printf("inumber: %d data block: %d",(inumber % INODES_PER_BLOCK),(inumber / INODES_PER_BLOCK) + 1 );
+    
     for(j = 0; j < POINTERS_PER_INODE; j += 1){
         free_list[block.inode[inumber % INODES_PER_BLOCK].direct[j]] = 0;
-        block.inode[inumber % INODES_PER_BLOCK].direct[j] = 0;
+        //block.inode[inumber % INODES_PER_BLOCK].direct[j] = 0;
     }
+    
+    if(block.inode[inumber % INODES_PER_BLOCK].size > POINTERS_PER_INODE*DISK_BLOCK_SIZE){
+                
+        sizeRemaining = block.inode[inumber % INODES_PER_BLOCK].size - POINTERS_PER_INODE*DISK_BLOCK_SIZE;
+        disk_read(block.inode[inumber % INODES_PER_BLOCK].indirect, block.data);
+        for(j = 0; j < ceil(sizeRemaining/DISK_BLOCK_SIZE); j += 1){
+                free_list[block.pointers[j]] = 0;
+        }
+    }
+    disk_read((inumber / INODES_PER_BLOCK) + 1, block.data);
     block.inode[inumber % INODES_PER_BLOCK].indirect = 0;
     block.inode[inumber % INODES_PER_BLOCK].isvalid = 0;
     disk_write((inumber / INODES_PER_BLOCK) + 1, block.data);
+    
+    
+    
     return 1;
 }
 
@@ -308,7 +337,7 @@ int fs_read( int inumber, char *data, int length, int offset ) {
             printf("fam 2\n");
             if(amountWritten + DISK_BLOCK_SIZE > length) {
                 printf("amount left: %d\n",(length-amountWritten));
-                p = strtok(block.data, (char *)block.data[length-amountWritten]);
+                //p = strtok(block.data, (char *)block.data[length-amountWritten]);
                 strcat(data,p);
                 amountWritten += length-amountWritten;
                 return amountWritten;
