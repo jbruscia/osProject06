@@ -366,8 +366,8 @@ int fs_read( int inumber, char *data, int length, int offset ) {
                 disk_read(inodeBlockToReadFrom, block.data);
                 continue;
             }
-            if(inodeSize < DISK_BLOCK_SIZE) {
-                for (i = 0; i < inodeSize; i += 1) {
+            if(inodeSize - (offset + amountRead) < DISK_BLOCK_SIZE) {
+                for (i = 0; i < inodeSize - (offset + amountRead); i += 1) {
                     data[amountRead + i] = block.data[position + i];
                 }
                 amountRead += i;
@@ -418,13 +418,13 @@ int fs_read( int inumber, char *data, int length, int offset ) {
             printf("position: %d", position);
             continue;
         }
-        /*if((length - amountRead - position) <= DISK_BLOCK_SIZE) {
+        if(inodeSize - (offset + amountRead) <= DISK_BLOCK_SIZE) {
             for (i = 0; i < inodeSize; i += 1) {
                 data[amountRead + i] = block.data[position + i];
             }
             amountRead += i;
             return amountRead;
-        }*/
+        }
         printf("fam 2\n");
         if(amountRead + DISK_BLOCK_SIZE + position >= length) {
             printf("amount left: %d amount read: %d inode size %d\n",(length-amountRead),amountRead, inodeSize);
