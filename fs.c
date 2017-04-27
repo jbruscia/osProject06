@@ -419,7 +419,7 @@ int fs_read( int inumber, char *data, int length, int offset ) {
             continue;
         }
         if(inodeSize - (offset + amountRead) <= DISK_BLOCK_SIZE) {
-            for (i = 0; i < inodeSize; i += 1) {
+            for (i = 0; i < inodeSize - (offset + amountRead); i += 1) {
                 data[amountRead + i] = block.data[position + i];
             }
             amountRead += i;
