@@ -538,9 +538,79 @@ int fs_write( int inumber, const char *data, int length, int offset ) {
             disk_read(inodeBlockToReadFrom,block.data);
         }
     }
-
-
-    return 0;
+    
+    printf("famming on some indirection, amount left to write: %d\n", length-amountWritten);
+    int numIndirectPointersAllocated = ceil((double)inodeSize / (double)DISK_BLOCK_SIZE) - numDirectPointers;
+    disk_read(inodeBlockToReadFrom, block.data);
+    printf("1\n");
+    int indirectBlockLocation = block.inode[inumber % INODES_PER_BLOCK].indirect;
+    for (i = 0; i < POINTERS_PER_BLOCK; i += 1){
+        //allocation check
+        if ((i+1) > numIndirectPointersAllocated){ //need to allocate
+            printf("allocating an indirect pointer\n");
+            for(j = 0; j < free_size; j += 1){
+                if(free_list[j] == 0){ //this block is free!
+                    free_list[j] = 1;
+                    disk_read(indirectBlockLocation, block.data);
+                    printf("2\n");
+                    block.pointers[i] = j;
+                    disk_write(indirectBlockLocation, block.data);
+                    disk_read(inodeBlockToReadFrom, block.data);
+                    printf("3\n");
+                    break;
+                }
+            }
+            printf("%d =? %d\t%d\n", j, free_size, amountWritten);
+            if(j == free_size){
+                //all data blocks are full!
+                printf("comparing offset + amountWritten: %d to inodeSize %d\n", offset + amountWritten, inodeSize);
+                if(offset + amountWritten > inodeSize){
+                    block.inode[inodeIndex].size = offset + amountWritten;
+                    printf("rewriting size from %d to %d", block.inode[inodeIndex].size, offset+amountWritten);
+                    printf("4\n");
+                    disk_write(inodeBlockToReadFrom, block.data);
+                    printf("4 done\n");
+                }
+                printf("return 1\n");
+                return amountWritten;
+            }
+        }
+        printf("past allocation\n");
+        //offset check
+        if(offset > DISK_BLOCK_SIZE) {
+            offset -= DISK_BLOCK_SIZE;
+            continue;
+        }
+        printf("5.1\n");
+        disk_read(indirectBlockLocation, block.data);
+        dindex = block.pointers[i];
+        disk_read(dindex, block.data);
+        printf("5.2\n");
+        for(k = position; k < DISK_BLOCK_SIZE; k += 1){
+            block.data[k] = data[k];
+            amountWritten++; position--;
+            if(amountWritten >= length){ //we are done writing
+                disk_write(dindex, block.data);
+                disk_read(inodeBlockToReadFrom, block.data);
+                if(offset + amountWritten > inodeSize){
+                    printf("rewriting size from %d to %d", block.inode[inodeIndex].size, offset+amountWritten);
+                    block.inode[inodeIndex].size = offset + amountWritten;
+                    disk_write(inodeBlockToReadFrom, block.data);
+                }
+                printf("return 2\n");
+                return amountWritten;
+            }
+        }
+        position = 0;
+        disk_write(dindex, block.data);
+        disk_read(indirectBlockLocation, block.data);
+    }
+    
+    disk_read(inodeBlockToReadFrom, block.data);
+    block.inode[inodeIndex].size = offset + amountWritten;
+    disk_write(inodeBlockToReadFrom, block.data);
+    printf("return 3\n");
+    return amountWritten;
 }
 //QUESTIONS
 //where should the free_list be initialized?
