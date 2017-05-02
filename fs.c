@@ -512,8 +512,8 @@ int fs_write( int inumber, const char *data, int length, int offset ) {
                     return amountWritten;
                 }
             }
-            if (offset > DISK_BLOCK_SIZE) {
-                offset -= DISK_BLOCK_SIZE;
+            if (position > DISK_BLOCK_SIZE) {
+                position -= DISK_BLOCK_SIZE;
                 continue;
             }
             dindex = block.inode[inodeIndex].direct[i];
@@ -543,7 +543,7 @@ int fs_write( int inumber, const char *data, int length, int offset ) {
     int numIndirectPointersAllocated = ceil((double)inodeSize / (double)DISK_BLOCK_SIZE) - numDirectPointers;
     disk_read(inodeBlockToReadFrom, block.data);
     printf("1\n");
-    int indirectBlockLocation = block.inode[inumber % INODES_PER_BLOCK].indirect;
+    int indirectBlockLocation = block.inode[inodeIndex].indirect;
     for (i = 0; i < POINTERS_PER_BLOCK; i += 1){
         //allocation check
         if ((i+1) > numIndirectPointersAllocated){ //need to allocate
@@ -577,8 +577,8 @@ int fs_write( int inumber, const char *data, int length, int offset ) {
         }
         printf("past allocation\n");
         //offset check
-        if(offset > DISK_BLOCK_SIZE) {
-            offset -= DISK_BLOCK_SIZE;
+        if(position > DISK_BLOCK_SIZE) {
+            position -= DISK_BLOCK_SIZE;
             continue;
         }
         printf("5.1\n");
