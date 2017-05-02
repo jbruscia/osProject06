@@ -405,17 +405,21 @@ int fs_read( int inumber, char *data, int length, int offset ) {
     printf("entering indirect land, amount left: %d\n", length-amountRead);
 
 
-    int numIndirectPointers = ceil((double)inodeSize / (double)DISK_BLOCK_SIZE);
+    int numIndirectPointers = ceil((double)inodeSize / (double)DISK_BLOCK_SIZE) - 5;
     disk_read(inodeBlockToReadFrom, block.data);
+    
+    
 
     int indirectBlockLocation = block.inode[inumber % INODES_PER_BLOCK].indirect;
 
     disk_read(indirectBlockLocation, block.data);
     for (j = 0; j < numIndirectPointers; j += 1) {
+        printf("in da loo\n");
         disk_read(block.pointers[j],block.data);
         if (position >= DISK_BLOCK_SIZE) {
             position -= DISK_BLOCK_SIZE;
             printf("position: %d", position);
+            disk_read(indirectBlockLocation, block.data);
             continue;
         }
         if(inodeSize - (offset + amountRead) <= DISK_BLOCK_SIZE) {
@@ -543,10 +547,23 @@ int fs_write( int inumber, const char *data, int length, int offset ) {
     int numIndirectPointersAllocated = ceil((double)inodeSize / (double)DISK_BLOCK_SIZE) - numDirectPointers;
     disk_read(inodeBlockToReadFrom, block.data);
     printf("1\n");
-    int indirectBlockLocation = block.inode[inodeIndex].indirect;
+    int indirectBlockLocation;
+    if(numIndirectPointersAllocated > 0){
+        indirectBlockLocation = block.inode[inodeIndex].indirect;
+    }
+    else {
+        for(j = 0; j < free_size; j += 1){
+                if(free_list[j] == 0){ //this block is free!
+                    free_list[j] = 1;
+                    indirectBlockLocation = j;
+                    break;
+                }
+            }
+            
+    }
     for (i = 0; i < POINTERS_PER_BLOCK; i += 1){
         //allocation check
-        if ((i+1) > numIndirectPointersAllocated){ //need to allocate
+        if ((i+2) > numIndirectPointersAllocated){ //need to allocate
             printf("allocating an indirect pointer\n");
             for(j = 0; j < free_size; j += 1){
                 if(free_list[j] == 0){ //this block is free!
