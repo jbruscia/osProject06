@@ -485,7 +485,7 @@ int fs_write( int inumber, const char *data, int length, int offset ) {
     disk_read(inodeBlockToReadFrom, block.data);
 
     if(!block.inode[inumber % INODES_PER_BLOCK].isvalid) {
-        printf("you fucked up fam, that inode isn't valid\n");
+        printf("you messed up fam, that inode isn't valid\n");
         return 0;
     }
 
@@ -523,7 +523,7 @@ int fs_write( int inumber, const char *data, int length, int offset ) {
             dindex = block.inode[inodeIndex].direct[i];
             disk_read(dindex, block.data);
             for (k = position; k < DISK_BLOCK_SIZE; k += 1) {
-                block.data[k] = data[k];
+                block.data[k] = data[amountWritten];
                 amountWritten++; position--;
                 if (amountWritten >= length ) {
                     disk_write(dindex,block.data);                
@@ -556,6 +556,8 @@ int fs_write( int inumber, const char *data, int length, int offset ) {
                 if(free_list[j] == 0){ //this block is free!
                     free_list[j] = 1;
                     indirectBlockLocation = j;
+                    block.inode[inodeIndex].indirect = j;
+                    disk_write(inodeBlockToReadFrom, block.data);
                     break;
                 }
             }
@@ -604,7 +606,7 @@ int fs_write( int inumber, const char *data, int length, int offset ) {
         disk_read(dindex, block.data);
         printf("5.2\n");
         for(k = position; k < DISK_BLOCK_SIZE; k += 1){
-            block.data[k] = data[k];
+            block.data[k] = data[amountWritten];
             amountWritten++; position--;
             if(amountWritten >= length){ //we are done writing
                 disk_write(dindex, block.data);
