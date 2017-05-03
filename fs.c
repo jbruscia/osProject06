@@ -236,11 +236,11 @@ int fs_create() {
     newInode.indirect = 0;
     for(k = 1; k <= iBlocks; k+=1){
         disk_read(k, block.data);        
-        for(i = 1; i < INODES_PER_BLOCK; i += 1){
+        for(i = 0; i < INODES_PER_BLOCK; i += 1){
             if(!block.inode[i].isvalid) {                
                 block.inode[i] = newInode;
                 disk_write(k, block.data);
-                return i + INODES_PER_BLOCK * blockCount;
+                return i + 1 + INODES_PER_BLOCK * blockCount;
             }
         }
         blockCount++;
