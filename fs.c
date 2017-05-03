@@ -125,7 +125,7 @@ void fs_debug() {
         disk_read(k,block.data);
         for (i = 0; i < INODES_PER_BLOCK; i += 1, blockCount += 1) {
             if(block.inode[i].isvalid) {
-                printf("inode %d:\n",blockCount);
+                printf("inode %d:\n",i);
                 printf("    size: %d bytes\n", block.inode[i].size);
                 printf("    direct blocks: ");
                 for (j = 0; j < POINTERS_PER_INODE; j += 1) {
@@ -237,11 +237,11 @@ int fs_create() {
     newInode.indirect = 0;
     for(k = 1; k <= iBlocks; k+=1){
         disk_read(k, block.data);        
-        for(i = 0; i < INODES_PER_BLOCK; i += 1){
+        for(i = 1; i < INODES_PER_BLOCK; i += 1){
             if(!block.inode[i].isvalid) {                
                 block.inode[i] = newInode;
                 disk_write(k, block.data);
-                return i + 1 + INODES_PER_BLOCK * blockCount;
+                return i + 0 + INODES_PER_BLOCK * blockCount;
             }
         }
         blockCount++;
@@ -265,7 +265,7 @@ int fs_delete( int inumber ) {
     numNodes = block.super.ninodes;
     disk_read((inumber / INODES_PER_BLOCK) + 1, block.data);
     
-    int inodeIndex = (inumber % INODES_PER_BLOCK) - 1;
+    int inodeIndex = (inumber % INODES_PER_BLOCK) - 0;
     
     printf("inumber: %d data block: %d",(inodeIndex),(inumber / INODES_PER_BLOCK) + 1 );
 
@@ -305,7 +305,7 @@ int fs_getsize( int inumber ) {
     iBlocks = block.super.ninodeblocks;
     numNodes = block.super.ninodes;
     disk_read((inumber / INODES_PER_BLOCK) + 1, block.data);
-    return block.inode[(inumber % INODES_PER_BLOCK) - 1].size;
+    return block.inode[(inumber % INODES_PER_BLOCK) - 0].size;
 }
 
 int fs_read( int inumber, char *data, int length, int offset ) {
@@ -332,7 +332,7 @@ int fs_read( int inumber, char *data, int length, int offset ) {
     numBlocks = block.super.nblocks;
     iBlocks = block.super.ninodeblocks;
     numNodes = block.super.ninodes;
-    int inodeIndex = (inumber % INODES_PER_BLOCK) - 1;
+    int inodeIndex = (inumber % INODES_PER_BLOCK) - 0;
 
     disk_read(inodeBlockToReadFrom, block.data);
 
@@ -477,7 +477,7 @@ int fs_write( int inumber, const char *data, int length, int offset ) {
     int inodeSize, dindex;
     int inodeBlockToReadFrom = (inumber / INODES_PER_BLOCK) + 1;
     int numDirectPointers;
-    int inodeIndex = (inumber % INODES_PER_BLOCK) - 1;
+    int inodeIndex = (inumber % INODES_PER_BLOCK) - 0;
 
 
     numBlocks = block.super.nblocks;
