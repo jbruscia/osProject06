@@ -125,7 +125,7 @@ void fs_debug() {
         disk_read(k,block.data);
         for (i = 0; i < INODES_PER_BLOCK; i += 1, blockCount += 1) {
             if(block.inode[i].isvalid) {
-                printf("inode %d:\n",i);
+                printf("inode %d:\n",blockCount - 1);
                 printf("    size: %d bytes\n", block.inode[i].size);
                 printf("    direct blocks: ");
                 for (j = 0; j < POINTERS_PER_INODE; j += 1) {
