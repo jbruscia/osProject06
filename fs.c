@@ -238,7 +238,7 @@ int fs_create() {
     for(k = 1; k <= iBlocks; k+=1){
         disk_read(k, block.data);        
         if(k != 1){
-            for(i = 0; i <= INODES_PER_BLOCK; i += 1){
+            for(i = 0; i < INODES_PER_BLOCK; i += 1){
 
                 if(!block.inode[i].isvalid) {                
                     block.inode[i] = newInode;
@@ -247,7 +247,7 @@ int fs_create() {
                 }
             }
         } else {
-            for(i = 1; i <= INODES_PER_BLOCK; i += 1){
+            for(i = 1; i < INODES_PER_BLOCK; i += 1){
 
                 if(!block.inode[i].isvalid) {                
                     block.inode[i] = newInode;
