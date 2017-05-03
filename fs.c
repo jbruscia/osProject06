@@ -166,7 +166,7 @@ void fs_debug() {
    free_list[i] = 0;
    }
    }
- */
+   */
 
 
 int fs_mount() {
@@ -237,11 +237,23 @@ int fs_create() {
     newInode.indirect = 0;
     for(k = 1; k <= iBlocks; k+=1){
         disk_read(k, block.data);        
-        for(i = 1; i < INODES_PER_BLOCK; i += 1){
-            if(!block.inode[i].isvalid) {                
-                block.inode[i] = newInode;
-                disk_write(k, block.data);
-                return i + 0 + INODES_PER_BLOCK * blockCount;
+        if(k != 1){
+            for(i = 0; i <= INODES_PER_BLOCK; i += 1){
+
+                if(!block.inode[i].isvalid) {                
+                    block.inode[i] = newInode;
+                    disk_write(k, block.data);
+                    return i + 0 + INODES_PER_BLOCK * blockCount;
+                }
+            }
+        } else {
+            for(i = 1; i <= INODES_PER_BLOCK; i += 1){
+
+                if(!block.inode[i].isvalid) {                
+                    block.inode[i] = newInode;
+                    disk_write(k, block.data);
+                    return i + 0 + INODES_PER_BLOCK * blockCount;
+                }
             }
         }
         blockCount++;
@@ -264,9 +276,9 @@ int fs_delete( int inumber ) {
     iBlocks = block.super.ninodeblocks;
     numNodes = block.super.ninodes;
     disk_read((inumber / INODES_PER_BLOCK) + 1, block.data);
-    
+
     int inodeIndex = (inumber % INODES_PER_BLOCK) - 0;
-    
+
     printf("inumber: %d data block: %d",(inodeIndex),(inumber / INODES_PER_BLOCK) + 1 );
 
     for(j = 0; j < POINTERS_PER_INODE; j += 1){
@@ -410,8 +422,8 @@ int fs_read( int inumber, char *data, int length, int offset ) {
 
     int numIndirectPointers = ceil((double)inodeSize / (double)DISK_BLOCK_SIZE);
     disk_read(inodeBlockToReadFrom, block.data);
-    
-    
+
+
 
     int indirectBlockLocation = block.inode[inodeIndex].indirect;
 
@@ -547,7 +559,7 @@ int fs_write( int inumber, const char *data, int length, int offset ) {
     }else {
         position -= (POINTERS_PER_INODE*DISK_BLOCK_SIZE);
     }
-    
+
     printf("famming on some indirection, amount left to write: %d\n", length-amountWritten);
     int numIndirectPointersAllocated = ceil((double)inodeSize / (double)DISK_BLOCK_SIZE) - numDirectPointers;
     disk_read(inodeBlockToReadFrom, block.data);
@@ -558,15 +570,15 @@ int fs_write( int inumber, const char *data, int length, int offset ) {
     }
     else {
         for(j = 0; j < free_size; j += 1){
-                if(free_list[j] == 0){ //this block is free!
-                    free_list[j] = 1;
-                    indirectBlockLocation = j;
-                    block.inode[inodeIndex].indirect = j;
-                    disk_write(inodeBlockToReadFrom, block.data);
-                    break;
-                }
+            if(free_list[j] == 0){ //this block is free!
+                free_list[j] = 1;
+                indirectBlockLocation = j;
+                block.inode[inodeIndex].indirect = j;
+                disk_write(inodeBlockToReadFrom, block.data);
+                break;
             }
-            
+        }
+
     }
     for (i = 0; i < POINTERS_PER_BLOCK; i += 1){
         //allocation check
@@ -629,7 +641,7 @@ int fs_write( int inumber, const char *data, int length, int offset ) {
         disk_write(dindex, block.data);
         disk_read(inodeBlockToReadFrom, block.data);
     }
-    
+
     disk_read(inodeBlockToReadFrom, block.data);
     block.inode[inodeIndex].size = offset + amountWritten;
     disk_write(inodeBlockToReadFrom, block.data);
