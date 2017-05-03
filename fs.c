@@ -240,7 +240,7 @@ int fs_create() {
             if(!block.inode[i].isvalid) {                
                 block.inode[i] = newInode;
                 disk_write(k, block.data);
-                return i + 1 + INODES_PER_BLOCK * blockCount;
+                return i + INODES_PER_BLOCK * blockCount;
             }
         }
         blockCount++;
