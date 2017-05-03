@@ -405,7 +405,7 @@ int fs_read( int inumber, char *data, int length, int offset ) {
     printf("entering indirect land, amount left: %d\n", length-amountRead);
 
 
-    int numIndirectPointers = ceil((double)inodeSize / (double)DISK_BLOCK_SIZE) - 5;
+    int numIndirectPointers = ceil((double)inodeSize / (double)DISK_BLOCK_SIZE);
     disk_read(inodeBlockToReadFrom, block.data);
     
     
@@ -546,7 +546,7 @@ int fs_write( int inumber, const char *data, int length, int offset ) {
     }
     
     printf("famming on some indirection, amount left to write: %d\n", length-amountWritten);
-    int numIndirectPointersAllocated = ceil((double)inodeSize / (double)DISK_BLOCK_SIZE) - numDirectPointers - 1;
+    int numIndirectPointersAllocated = ceil((double)inodeSize / (double)DISK_BLOCK_SIZE) - numDirectPointers;
     disk_read(inodeBlockToReadFrom, block.data);
     printf("1\n");
     int indirectBlockLocation;
@@ -586,7 +586,7 @@ int fs_write( int inumber, const char *data, int length, int offset ) {
                 //all data blocks are full!
                 printf("comparing offset %d  amountWritten: %d to inodeSize %d\n", offset, amountWritten, inodeSize);
                 if(offset + amountWritten > inodeSize){
-                    block.inode[inodeIndex].size = offset + amountWritten + DISK_BLOCK_SIZE;
+                    block.inode[inodeIndex].size = offset + amountWritten;
                     printf("rewriting size from %d to %d", block.inode[inodeIndex].size, offset+amountWritten);
                     printf("4\n");
                     disk_write(inodeBlockToReadFrom, block.data);
@@ -615,7 +615,7 @@ int fs_write( int inumber, const char *data, int length, int offset ) {
                 disk_read(inodeBlockToReadFrom, block.data);
                 if(offset + amountWritten > inodeSize){
                     printf("rewriting size from %d to %d", block.inode[inodeIndex].size, offset+amountWritten);
-                    block.inode[inodeIndex].size = offset + amountWritten + DISK_BLOCK_SIZE;
+                    block.inode[inodeIndex].size = offset + amountWritten;
                     disk_write(inodeBlockToReadFrom, block.data);
                 }
                 printf("return 2\n");
@@ -624,7 +624,7 @@ int fs_write( int inumber, const char *data, int length, int offset ) {
         }
         position = 0;
         disk_write(dindex, block.data);
-        disk_read(indirectBlockLocation, block.data);
+        disk_read(inodeBlockToReadFrom, block.data);
     }
     
     disk_read(inodeBlockToReadFrom, block.data);
