@@ -14,9 +14,9 @@
 #define POINTERS_PER_INODE 5
 #define POINTERS_PER_BLOCK 1024
 
-int numBlocks = 0;
-int iBlocks = 0;
-int numNodes = 0;
+int numBlocks = 0; //number of blocks on disk_read
+int iBlocks = 0; //number of blocks allocated for inodes
+int numNodes = 0; //number of inodes
 int *free_list;
 int free_size;
 int mountedOrNah = 0;
@@ -420,7 +420,11 @@ int fs_read( int inumber, char *data, int length, int offset ) {
     printf("entering indirect land, amount left: %d\n", length-amountRead);
 
 
-    int numIndirectPointers = ceil((double)inodeSize / (double)DISK_BLOCK_SIZE);
+    int numIndirectPointers = ceil((double)inodeSize / (double)DISK_BLOCK_SIZE) - numInodePointers;
+    printf("numIndirectPointers: %d\n", numIndirectPointers);
+    if(numIndirectPointers == 0) {
+        return amountRead;
+    }
     disk_read(inodeBlockToReadFrom, block.data);
 
 
@@ -599,6 +603,7 @@ int fs_write( int inumber, const char *data, int length, int offset ) {
             printf("%d =? %d\t%d\n", j, free_size, amountWritten);
             if(j == free_size){
                 //all data blocks are full!
+                printf("All data blocks are full! The entire file was not able to be written\n");
                 printf("comparing offset %d  amountWritten: %d to inodeSize %d\n", offset, amountWritten, inodeSize);
                 if(offset + amountWritten > inodeSize){
                     block.inode[inodeIndex].size = offset + amountWritten;
