@@ -51,17 +51,17 @@ int fs_format() {
         return 0;
     }
     union fs_block block;
-
     disk_read(0, block.data);
 
     int k, i, j;
     numBlocks = block.super.nblocks;
     iBlocks = block.super.ninodeblocks;
     numNodes = block.super.ninodes;
+    //clear inode table
     for(k = 1; k <= iBlocks; k += 1){
         disk_read(k, block.data);
-        for(i = 0; i < INODES_PER_BLOCK; i += 1){
-            if(block.inode[i].isvalid){
+        for(i = 0; i < INODES_PER_BLOCK; i += 1){ //go through each inode, clear map
+            if(block.inode[i].isvalid){ 
                 if(block.inode[i].indirect) {
                     block.inode[i].indirect = 0;
                 }
@@ -75,6 +75,7 @@ int fs_format() {
         }
         disk_write(k, block.data);
     }
+    //free the rest of the data blocks
     for(k = iBlocks + 1; k < numBlocks; k += 1){
         disk_read(k, block.data);
         memset(&block.data[0], 0, sizeof(block.data));
@@ -92,7 +93,7 @@ int fs_format() {
     newSuper.ninodeblocks = newInodeNum;
     newSuper.ninodes = INODES_PER_BLOCK;
     block.super = newSuper;
-
+    //update block with new info
     disk_write(0, block.data);
     mountedOrNah = 0;
 
@@ -101,53 +102,52 @@ int fs_format() {
 
 void fs_debug() {
     union fs_block block;
-
     disk_read(0,block.data);
 
     if(block.super.magic != FS_MAGIC) {
         printf("magic number is invalid\n");
         exit(1);
     }
+    //display super block info
     printf("magic number is valid \n");
     printf("superblock:\n");
     printf("    %d blocks on disk\n",block.super.nblocks);
     printf("    %d blocks for inodes\n",block.super.ninodeblocks);
     printf("    %d inodes total\n",block.super.ninodes);
-    int k,i,j;
+    
     numBlocks = block.super.nblocks;
     iBlocks = block.super.ninodeblocks;
     numNodes = block.super.ninodes;
+    
+    
     int blockCount = 1;
     double sizeRemaining;
-    for (k = 1; k <= iBlocks; k += 1)
-    {
-        //printf("block loop \n");
+    int k,i,j;
+    for (k = 1; k <= iBlocks; k += 1) { //for each inode block
         disk_read(k,block.data);
-        for (i = 0; i < INODES_PER_BLOCK; i += 1, blockCount += 1) {
-            if(block.inode[i].isvalid) {
+        for (i = 0; i < INODES_PER_BLOCK; i += 1, blockCount += 1) { //for each inode in block
+            if(block.inode[i].isvalid) { //if it is valid print its contents
                 printf("inode %d:\n",blockCount - 1);
                 printf("    size: %d bytes\n", block.inode[i].size);
                 printf("    direct blocks: ");
                 for (j = 0; j < POINTERS_PER_INODE; j += 1) {
-                    //printf("each block: %d\n", block.inode[i].direct[j]);
-                    if (block.inode[i].direct[j]) {
+                    if (block.inode[i].direct[j]) { //if there is a direct block, print it
                         printf("%d ", block.inode[i].direct[j]);
                     }
                 }
                 printf("\n");
-
+                //for indirect pointers
                 if(block.inode[i].size > POINTERS_PER_INODE*DISK_BLOCK_SIZE){
-
                     sizeRemaining = block.inode[i].size - POINTERS_PER_INODE*DISK_BLOCK_SIZE;
                     printf("    indirect block: %d\n",block.inode[i].indirect);
 
-                    disk_read(block.inode[i].indirect,block.data);
+                    disk_read(block.inode[i].indirect,block.data); //read in indirect data block
                     printf("    indirect data blocks: ");
-
-                    for (j = 0; j < ceil(sizeRemaining/DISK_BLOCK_SIZE); j += 1){
+                    //print all indirect blocks used
+                    for (j = 0; j < ceil(sizeRemaining/DISK_BLOCK_SIZE); j += 1){ 
                         if(block.pointers[j]) printf("%d ", block.pointers[j]);
                     }
-                    disk_read(k,block.data);
+                    disk_read(k,block.data); //return to inode block to read from
                     printf("\n");
                 }
             }
@@ -156,18 +156,6 @@ void fs_debug() {
     }
 
 }
-/*
-   void fill_free_list(){
-   union fs_block block;
-   disk_read(0, block.data);
-   free_list = malloc(sizeof(int) * block.super.nblocks);
-   free_size = block.super.nblocks;
-   for(i = 0; i < free_size; i += 1){
-   free_list[i] = 0;
-   }
-   }
-   */
-
 
 int fs_mount() {
     //Examine the disk for a filesystem. If one is present, read the superblock, build a free block bitmap, and prepare the filesystem for use
@@ -175,21 +163,24 @@ int fs_mount() {
     union fs_block block;
     disk_read(0,block.data);
     if(block.super.magic != FS_MAGIC){
-        return 0;
+        printf("magic number is invalid\n");
+        exit(1);
     }
-    free_list = malloc(sizeof(int) * block.super.nblocks);
-    int k, i, j;
-    double sizeRemaining;
+    free_list = malloc(sizeof(int) * block.super.nblocks); //create free list
+    
+    
     numBlocks = block.super.nblocks;
     free_size = block.super.nblocks;
-    for(i = 0; i < free_size; i += 1){
+    int k, i, j;
+    double sizeRemaining;
+    for(i = 0; i < free_size; i += 1){ //initialize list to 0
         free_list[i] = 0;
     }
-    free_list[0] = 1;
+    free_list[0] = 1; //save the super block
     iBlocks = block.super.ninodeblocks;
     numNodes = block.super.ninodes;
     for(k = 1; k <= iBlocks; k += 1) {
-        free_list[k] = 1;
+        free_list[k] = 1; //make sure to mark the inode blocks
         disk_read(k, block.data);
         for(i = 0; i < INODES_PER_BLOCK; i += 1){
             if(block.inode[i].isvalid){
