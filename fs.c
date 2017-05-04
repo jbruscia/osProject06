@@ -182,19 +182,21 @@ int fs_mount() {
     for(k = 1; k <= iBlocks; k += 1) {
         free_list[k] = 1; //make sure to mark the inode blocks
         disk_read(k, block.data);
-        for(i = 0; i < INODES_PER_BLOCK; i += 1){
+        for(i = 0; i < INODES_PER_BLOCK; i += 1){ 
             if(block.inode[i].isvalid){
                 //use size to determine number of blocks to mark
                 for(j = 0; j < POINTERS_PER_INODE; j += 1){
-                    if(block.inode[i].direct[j]){
+                    if(block.inode[i].direct[j]){ //mark all of the allocated blocks in map
                         free_list[block.inode[i].direct[j]] = 1; 
                     }
                 }
+                //if there are indirect blocks
                 if(block.inode[i].size > POINTERS_PER_INODE*DISK_BLOCK_SIZE){
                     sizeRemaining = block.inode[i].size - POINTERS_PER_INODE*DISK_BLOCK_SIZE;
                     printf("ran that piece of code\n");
                     free_list[block.inode[i].direct[j]] = 1;
                     disk_read(block.inode[i].indirect, block.data);
+                    //loop through number of used indirect blocks
                     for(j = 0; j < ceil(sizeRemaining/DISK_BLOCK_SIZE); j += 1){
                         free_list[block.pointers[j]] = 1;
                     }
@@ -203,94 +205,117 @@ int fs_mount() {
             }
         }
     }
-    for(i = 0; i < free_size; i += 1){
-        printf("i: %d free_list[i]: %d\n",i,free_list[i]);
-    }
-    mountedOrNah = 1;
+    mountedOrNah = 1; //we are now mounted! update that 
     return 1;
 }
 
 int fs_create() {
     //Create a new inode of zero length
     //return the (positive) inumber on success, on failure return 0
+    
+    
     union fs_block block;
     disk_read(0,block.data);
+    if(block.super.magic != FS_MAGIC){
+        printf("magic number is invalid\n");
+        exit(1);
+    }
+    //get your super block variables
     numBlocks = block.super.nblocks;
     iBlocks = block.super.ninodeblocks;
     numNodes = block.super.ninodes;
-    int i, k, blockCount = 0;
+    
+    //create a new Inode to be inputted
     struct fs_inode newInode;
     newInode.isvalid = 1;
     newInode.size = 0;
-    for(i = 0; i < POINTERS_PER_INODE; i += 1){
+    
+    int i, k, blockCount = 0;
+    for(i = 0; i < POINTERS_PER_INODE; i += 1){ //initialize all new inode values to 0
         newInode.direct[i] = 0;
     }
     newInode.indirect = 0;
-    for(k = 1; k <= iBlocks; k+=1){
+    
+    for(k = 1; k <= iBlocks; k+=1){ //for each inode block
         disk_read(k, block.data);        
-        if(k != 1){
+        if(k != 1){ //if it is not the first block, don't skip the zero index
             for(i = 0; i < INODES_PER_BLOCK; i += 1){
-
-                if(!block.inode[i].isvalid) {                
+                if(!block.inode[i].isvalid) { //locate the first available inode             
                     block.inode[i] = newInode;
                     disk_write(k, block.data);
                     return i + 0 + INODES_PER_BLOCK * blockCount;
                 }
             }
-        } else {
+        } else { //this is the first inode block, so inode[0] is not used (inode cannot be 0)
             for(i = 1; i < INODES_PER_BLOCK; i += 1){
-
-                if(!block.inode[i].isvalid) {                
+                if(!block.inode[i].isvalid) { //locate the first available inode      
                     block.inode[i] = newInode;
                     disk_write(k, block.data);
                     return i + 0 + INODES_PER_BLOCK * blockCount;
                 }
             }
         }
-        blockCount++;
+        blockCount++; //blockount keeps a running number of what block you are in
+                      //it does not get reset when you enter a new inode block
     }
+    
+    //exiting loop means it couldn't find an open inode
+    printf("Unable to create new inode, there are no spaces available.\n");
     return 0;
 }
 
 int fs_delete( int inumber ) {
     //Delete the inode indicated by the inumber. Release all data and indirect blocks assigned to this inode, returning them to the free block map
     //on success return 1, on failure return 0
+    
+    //check to see if mounted
+    if(!mountedOrNah) {
+        printf("You must mount your file system first\n");
+        return 0;
+    }
+    
+    
     union fs_block block;
     disk_read(0, block.data);
     if(inumber < 1 || inumber > INODES_PER_BLOCK * block.super.ninodeblocks){ //ADD THE CASE THAT IT'S TOO HIGH
         printf("Your input number is invalid!\n");
         return 0;
     }
-    int j;
-    double sizeRemaining;
+    
+    //get your super block variables
     numBlocks = block.super.nblocks;
     iBlocks = block.super.ninodeblocks;
     numNodes = block.super.ninodes;
     disk_read((inumber / INODES_PER_BLOCK) + 1, block.data);
 
-    int inodeIndex = (inumber % INODES_PER_BLOCK) - 0;
+    
+    //declare other variables
+    int inodeIndex = (inumber % INODES_PER_BLOCK);
+    int j;
+    double sizeRemaining;
 
-    printf("inumber: %d data block: %d",(inodeIndex),(inumber / INODES_PER_BLOCK) + 1 );
-
+    //free the direct blocks
     for(j = 0; j < POINTERS_PER_INODE; j += 1){
         free_list[block.inode[inodeIndex].direct[j]] = 0;
-        //block.inode[inumber % INODES_PER_BLOCK].direct[j] = 0;
     }
 
+    //check to see if indirect blocks were used
     if(block.inode[inodeIndex].size > POINTERS_PER_INODE*DISK_BLOCK_SIZE){
-
+        //free the indirect block
+        free_list[block.inode[inodeIndex].indirect] = 0;
+        //free the blocks pointed to by indirect block
         sizeRemaining = block.inode[inodeIndex].size - POINTERS_PER_INODE*DISK_BLOCK_SIZE;
         disk_read(block.inode[inodeIndex].indirect, block.data);
         for(j = 0; j < ceil(sizeRemaining/DISK_BLOCK_SIZE); j += 1){
             free_list[block.pointers[j]] = 0;
         }
     }
+    
+    //make the inode invalid and set size to zero
     disk_read((inumber / INODES_PER_BLOCK) + 1, block.data);
     block.inode[inodeIndex].indirect = 0;
     block.inode[inodeIndex].isvalid = 0;
     disk_write((inumber / INODES_PER_BLOCK) + 1, block.data);
-
-
 
     return 1;
 }
@@ -300,15 +325,19 @@ int fs_getsize( int inumber ) {
     //on failure, return -1
     union fs_block block;
     disk_read(0, block.data);
-    if(inumber < 1 || inumber > INODES_PER_BLOCK * block.super.ninodeblocks){ //ADD THE CASE THAT IT'S TOO HIGH
+    if(inumber < 1 || inumber > INODES_PER_BLOCK * block.super.ninodeblocks){
         printf("Your input number is invalid!\n");
         return -1;
     }
+    
+    //get your super block variables
     numBlocks = block.super.nblocks;
     iBlocks = block.super.ninodeblocks;
     numNodes = block.super.ninodes;
+    
+    //read the correct inode block
     disk_read((inumber / INODES_PER_BLOCK) + 1, block.data);
-    return block.inode[(inumber % INODES_PER_BLOCK) - 0].size;
+    return block.inode[(inumber % INODES_PER_BLOCK)].size;
 }
 
 int fs_read( int inumber, char *data, int length, int offset ) {
@@ -316,6 +345,12 @@ int fs_read( int inumber, char *data, int length, int offset ) {
     //Allocate any necessary direct and indirect blocks in the process. Return the number of bytes actually written
     //The number of bytes actually written could be smaller than the number of bytes requested, perhaps if the disk becomes full
     //If the given number is invalid, or any other error is encoutnered, return 0
+    //check to see if mounted
+    if(!mountedOrNah) {
+        printf("You must mount your file system first\n");
+        return 0;
+    }
+    
     union fs_block block;
     disk_read(0, block.data);
     if(inumber < 1 || inumber > INODES_PER_BLOCK * block.super.ninodeblocks){ //ADD THE CASE THAT IT'S TOO HIGH
@@ -323,19 +358,17 @@ int fs_read( int inumber, char *data, int length, int offset ) {
         return -1;
     }
 
-
-
+    //declare variables
     int j,i, amountRead = 0, position = offset;
     int inodeSize;
     int inodeBlockToReadFrom = (inumber / INODES_PER_BLOCK) + 1;
     int numInodePointers;
+    int inodeIndex = (inumber % INODES_PER_BLOCK) - 0;
 
-
-
+    //get your super block variables
     numBlocks = block.super.nblocks;
     iBlocks = block.super.ninodeblocks;
     numNodes = block.super.ninodes;
-    int inodeIndex = (inumber % INODES_PER_BLOCK) - 0;
 
     disk_read(inodeBlockToReadFrom, block.data);
 
@@ -344,34 +377,34 @@ int fs_read( int inumber, char *data, int length, int offset ) {
         return 0;
     }
 
-    printf("length: %d\n", length);
     inodeSize = block.inode[inodeIndex].size;
-    numInodePointers = ceil((double)inodeSize / (double)DISK_BLOCK_SIZE);
-    if (numInodePointers > 5) numInodePointers = 5;
+    numInodePointers = ceil((double)inodeSize / (double)DISK_BLOCK_SIZE); //calculate how many direct blocks are used
+    if (numInodePointers > 5) numInodePointers = 5; //max of 5 direct pointers
 
-    if(offset >= inodeSize) return 0;
+    if(offset >= inodeSize) {
+        printf("The offset is greater than the inode size, there is nothing to read\n");
+        return 0;
+    }
 
-    //direct pointers
-    printf("numInodePointers: %d\n", numInodePointers);
+    //read data from direct pointers
     for (j = 0; j < numInodePointers; j += 1) {
-        printf("Block we are finna enterma: %d\n",block.inode[inodeIndex].direct[j]);
         disk_read(block.inode[inodeIndex].direct[j],block.data);
-        if((length+offset) < DISK_BLOCK_SIZE) { //tiny little read
-            printf("fam 1\n");
-            for (i = offset; i < offset+length; i += 1) {
+        if((length+offset) < DISK_BLOCK_SIZE) { //if the read is less than one block
+            for (i = offset; i < offset+length; i += 1) { //write the one block and return the amount read
                 data[i-offset] = block.data[i];
             }
             amountRead = i-offset;
-            //inodeSize -= i-offset;
-
             return amountRead;
         } else {
+            //if the current offset amount is greater than the block size, skip block 
+            //and decrement position offset (position represents how much offset has already been accounted for)
             if (position >= DISK_BLOCK_SIZE) {
                 position -= DISK_BLOCK_SIZE;
                 printf("position: %d\n", position);
                 disk_read(inodeBlockToReadFrom, block.data);
                 continue;
             }
+            //if 
             if(inodeSize - (offset + amountRead) < DISK_BLOCK_SIZE) {
                 for (i = 0; i < inodeSize - (offset + amountRead); i += 1) {
                     data[amountRead + i] = block.data[position + i];
@@ -471,6 +504,13 @@ int fs_read( int inumber, char *data, int length, int offset ) {
 }
 
 int fs_write( int inumber, const char *data, int length, int offset ) {
+    
+    //check to see if mounted
+    if(!mountedOrNah) {
+        printf("You must mount your file system first\n");
+        return 0;
+    }
+    
     union fs_block block;
     disk_read(0, block.data);
     if(inumber < 1 || inumber > INODES_PER_BLOCK * block.super.ninodeblocks){ //ADD THE CASE THAT IT'S TOO HIGH
