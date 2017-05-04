@@ -373,13 +373,13 @@ int fs_read( int inumber, char *data, int length, int offset ) {
     disk_read(inodeBlockToReadFrom, block.data);
 
     if(!block.inode[inodeIndex].isvalid) {
-        printf("you messed up fam, that inode isn't valid\n");
+        printf("You messed up fam, that inode isn't valid\n");
         return 0;
     }
 
     inodeSize = block.inode[inodeIndex].size;
     numInodePointers = ceil((double)inodeSize / (double)DISK_BLOCK_SIZE); //calculate how many direct blocks are used
-    if (numInodePointers > 5) numInodePointers = 5; //max of 5 direct pointers
+    if (numInodePointers > POINTERS_PER_INODE) numInodePointers = POINTERS_PER_INODE; //max of 5 direct pointers
 
     if(offset >= inodeSize) {
         printf("The offset is greater than the inode size, there is nothing to read\n");
@@ -400,71 +400,57 @@ int fs_read( int inumber, char *data, int length, int offset ) {
             //and decrement position offset (position represents how much offset has already been accounted for)
             if (position >= DISK_BLOCK_SIZE) {
                 position -= DISK_BLOCK_SIZE;
-                printf("position: %d\n", position);
                 disk_read(inodeBlockToReadFrom, block.data);
                 continue;
             }
-            //if 
+            //if there is less than one block worth left available to be read
             if(inodeSize - (offset + amountRead) < DISK_BLOCK_SIZE) {
                 for (i = 0; i < inodeSize - (offset + amountRead); i += 1) {
-                    data[amountRead + i] = block.data[position + i];
+                    data[amountRead + i] = block.data[position + i]; //continue to update data
                 }
                 amountRead += i;
                 return amountRead;
             }
-            printf("fam 2\n");
+            //if there is less than one block worth requested to be read
             if(amountRead + DISK_BLOCK_SIZE + position >= length) {
-                printf("amount left: %d\n",(length-amountRead));
-                for (i = 0; i < length-amountRead; i += 1) {
+                for (i = 0; i < length-amountRead; i += 1) { //read from 0 to how much is left to be read
                     data[amountRead + i] = block.data[position + i];
                 }
                 amountRead += length-amountRead;
-                //inodeSize -= length-amountRead;
                 return amountRead;
-            } else {
-                //if((length-amountRead) <= 0) return (amountRead + DISK_BLOCK_SIZE);
-                printf("fam 3 amount written:%d\n", amountRead);
-
-                for (i = 0; i < DISK_BLOCK_SIZE-position; i += 1) {
+            } else { //should be able to do a full read of this block (-minus the offset as represented by position)
+                for (i = 0; i < DISK_BLOCK_SIZE-position; i += 1) { 
                     data[amountRead + i] = block.data[i + position];
                 }
-                position = 0;
+                position = 0; //offset has been taken care of
                 amountRead += DISK_BLOCK_SIZE;
-                //inodeSize -= DISK_BLOCK_SIZE;
             }
 
         }
+        //finished looping through block, read into inode block again to read next
         disk_read(inodeBlockToReadFrom, block.data);
-        printf("looped through\n");
-        printf("Block we are finna enterma end: %d\n",block.inode[inodeIndex].direct[j]);
     }
-    //printf("words for now: %s\n", data);
-    //printf("inidrect block: %d\n",block.inode[inumber % INODES_PER_BLOCK].indirect);
-
-    printf("entering indirect land, amount left: %d\n", length-amountRead);
 
 
+    //finished direct pointer data, moving on to indirect
+    //calculate the number of indirect pointers used, based on size of inode
     int numIndirectPointers = ceil((double)inodeSize / (double)DISK_BLOCK_SIZE) - numInodePointers;
-    printf("numIndirectPointers: %d\n", numIndirectPointers);
-    if(numIndirectPointers == 0) {
+    if(numIndirectPointers == 0) { //if there aren's any used, we are done so return
         return amountRead;
     }
+    
     disk_read(inodeBlockToReadFrom, block.data);
-
-
-
     int indirectBlockLocation = block.inode[inodeIndex].indirect;
-
     disk_read(indirectBlockLocation, block.data);
-    for (j = 0; j < numIndirectPointers; j += 1) {
-        printf("in da loo\n");
+    
+    for (j = 0; j < numIndirectPointers; j += 1) { //looping through indirect pointers
         disk_read(block.pointers[j],block.data);
-        if (position >= DISK_BLOCK_SIZE) {
+        if (position >= DISK_BLOCK_SIZE) { //if the offset is still larger than the block 
             position -= DISK_BLOCK_SIZE;
-            printf("position: %d", position);
             disk_read(indirectBlockLocation, block.data);
             continue;
         }
+        //if there is less than one block worth left available to be read
         if(inodeSize - (offset + amountRead) <= DISK_BLOCK_SIZE) {
             for (i = 0; i < inodeSize - (offset + amountRead); i += 1) {
                 data[amountRead + i] = block.data[position + i];
@@ -472,34 +458,25 @@ int fs_read( int inumber, char *data, int length, int offset ) {
             amountRead += i;
             return amountRead;
         }
-        printf("fam 2\n");
+        //if there is less than one block worth requested to be read
         if(amountRead + DISK_BLOCK_SIZE + position >= length) {
-            printf("amount left: %d amount read: %d inode size %d\n",(length-amountRead),amountRead, inodeSize);
             for (i = 0; i < length-amountRead; i += 1) {
                 data[amountRead + i] = block.data[position + i];
             }
             amountRead += length-amountRead;
             //inodeSize -= length-amountRead;
             return amountRead;
-        } else {
-            //if((length-amountRead) <= 0) return (amountRead + DISK_BLOCK_SIZE);
-            printf("fam 3 amount written:%d\n", amountRead);
-
+        } else { //should be able to do a full read of this block (-minus the offset as represented by position)
             for (i = 0; i < DISK_BLOCK_SIZE-position; i += 1) {
                 data[amountRead + i] = block.data[i + position];
             }
             position = 0;
             amountRead += DISK_BLOCK_SIZE;
-            //inodeSize -= DISK_BLOCK_SIZE;
         }
         disk_read(indirectBlockLocation, block.data);
     }
-    printf("looped through\n");
 
-    printf("Block we are finna enterma end: %d",block.inode[inodeIndex].direct[j]);
-
-
-
+    //should never reach here, return fail if you do
     return 0;
 }
 
