@@ -108,6 +108,11 @@ void fs_debug() {
         printf("magic number is invalid\n");
         exit(1);
     }
+    
+    if(disk_size() != block.super.nblocks) {
+        printf("NOTE: your disk size is not the same as your input.  Your requested disk size will be updated if you run the 'format' command.\n");
+    }
+    
     //display super block info
     printf("magic number is valid \n");
     printf("superblock:\n");
